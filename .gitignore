@@ -5,6 +5,7 @@
 *.dylib
 *.app/
 dist/
+release_assets/
 AppIcon.iconset/
 *.icns
 config.json
