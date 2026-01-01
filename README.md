@@ -23,7 +23,7 @@
     *   **Interactive Mode:** Double-click the app to configure parameters (Quality, Format, Resize) via the interactive menu.
 
 ### Windows
-1.  Download `ImgCompress_Win_x64.exe`.
+1.  Download `ImgCompress_Win_x64.exe` or  `ImgCompress_Win_ARM64.exe` .
 2.  Run the file from the Command Prompt or via double-click.
 
 ## 🛠 Building from source
