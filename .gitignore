@@ -1,0 +1,18 @@
+# Binaries and Apps
+*.exe
+*.dll
+*.so
+*.dylib
+*.app/
+dist/
+AppIcon.iconset/
+*.icns
+config.json
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
+
+# Go
+go.sum
