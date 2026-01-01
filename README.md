@@ -1,72 +1,72 @@
 # ImgCompress-go
 
-**ImgCompress-go** è un'applicazione desktop leggera e potente per ottimizzare, ridimensionare e convertire immagini (JPEG, PNG). Scritta in Go, offre un'interfaccia a riga di comando (CLI) interattiva e supporta il Drag & Drop nativo.
+**ImgCompress-go** is a lightweight and powerful desktop application to optimize, resize, and convert images (JPEG, PNG). Written in Go, it features an interactive Command Line Interface (CLI) and supports native Drag & Drop.
 
-![Icon](icon.png)
+![Screenshot](screenshot.png)
 
-## ✨ Funzionalità
+## ✨ Features
 
-*   **Compressione Intelligente:** Riduce il peso delle immagini mantenendo alta la qualità visiva.
-*   **Ridimensionamento:** Imposta una larghezza massima (es. 1920px) e l'app ridimensionerà le immagini più grandi proporzionalmente.
-*   **Conversione:** Converti facilmente da PNG a JPG (o viceversa) o mantieni il formato originale.
-*   **Drag & Drop:** Trascina file o intere cartelle sull'icona dell'app o dentro la finestra.
-*   **Analisi Preventiva:** Vedi quanto spazio risparmierai *prima* di confermare il salvataggio.
-*   **Configurazione Persistente:** Le tue preferenze vengono salvate automaticamente.
+*   **Smart Compression:** Reduces image file size while maintaining high visual quality.
+*   **Resizing:** Set a maximum width (e.g., 1920px) and the app will downscale larger images proportionally.
+*   **Conversion:** Easily convert from PNG to JPG (or vice-versa) or keep the original format.
+*   **Drag & Drop:** Drag files or entire folders onto the app icon or into the window.
+*   **Pre-save Analysis:** See exactly how much space you will save *before* confirming the operation.
+*   **Persistent Config:** Your preferences are automatically saved across sessions.
 
-## 🚀 Installazione e Uso
+## 🚀 Installation & Usage
 
 ### macOS
-1.  Scarica il file `ImgCompress.app`.
-2.  Trascinalo nella cartella **Applicazioni** (o tienilo sul Desktop).
-3.  **Uso:**
-    *   **Drag & Drop:** Trascina le immagini direttamente sull'icona dell'app.
-    *   **Doppio Click:** Apri l'app per configurare i parametri (Qualità, Formato, Resize) tramite il menu interattivo.
+1.  Download the `ImgCompress_Silicon.app` (for M1/M2/M3) or `ImgCompress_Intel.app` (for older Macs).
+2.  Drag it to your **Applications** folder (or keep it on your Desktop).
+3.  **Usage:**
+    *   **Drag & Drop:** Drag images directly onto the app icon.
+    *   **Interactive Mode:** Double-click the app to configure parameters (Quality, Format, Resize) via the interactive menu.
 
 ### Windows
-1.  Scarica `ImgCompress_Win_x64.exe`.
-2.  Esegui il file dal Prompt dei Comandi o tramite doppio click.
+1.  Download `ImgCompress_Win_x64.exe`.
+2.  Run the file from the Command Prompt or via double-click.
 
-## 🛠 Compilazione (Build)
+## 🛠 Building from source
 
-Se vuoi compilare il progetto dal codice sorgente:
+To build the project yourself:
 
-### Prerequisiti
-*   [Go](https://go.dev/dl/) (v1.21+) installato.
+### Prerequisites
+*   [Go](https://go.dev/dl/) (v1.21+) installed.
 
-### Comandi
+### Commands
 
-1.  Clona il repository:
+1.  Clone the repository:
     ```bash
-    git clone https://github.com/tuo-username/imgcompress-go.git
+    git clone https://github.com/your-username/imgcompress-go.git
     cd imgcompress-go
     ```
 
-2.  Installa le dipendenze:
+2.  Install dependencies:
     ```bash
     go mod tidy
     ```
 
-3.  **Compilazione per macOS:**
+3.  **Build for macOS:**
     ```bash
     chmod +x build_mac.sh
     ./build_mac.sh
     ```
-    Troverai `ImgCompress.app` nella cartella corrente.
+    You will find the `.app` bundles in the root folder.
 
-4.  **Compilazione per Windows:**
+4.  **Build for Windows:**
     ```bash
     chmod +x build_win.sh
     ./build_win.sh
     ```
-    Troverai gli eseguibili nella cartella `dist/`.
+    You will find the executables in the `dist/` folder.
 
-## ⚙️ Configurazione
+## ⚙️ Configuration
 
-Le impostazioni vengono salvate in:
+Settings are stored in:
 *   **macOS:** `~/Library/Application Support/ImgCompress/config.json`
 *   **Windows:** `%AppData%\ImgCompress\config.json`
 
-Esempio di config:
+Example config:
 ```json
 {
   "jpeg_quality": 75,
@@ -75,6 +75,6 @@ Esempio di config:
 }
 ```
 
-## 📝 Licenza
+## 📝 License
 
-Distribuito sotto licenza MIT. Vedi `LICENSE` per maggiori informazioni.
+Distributed under the MIT License. See `LICENSE` for more information.

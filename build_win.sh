@@ -44,7 +44,7 @@ fi
 
 # 1. Build per Windows x64 (Standard)
 echo "   🔨 Compilazione Windows x64 (Intel/AMD)..."
-GOOS=windows GOARCH=amd64 go build -o "dist/${APP_NAME}_Win_x64.exe" main.go
+GOOS=windows GOARCH=amd64 go build -o "dist/${APP_NAME}_Win_x64.exe" .
 if [ $? -eq 0 ]; then
     echo "      ✔ Creato dist/${APP_NAME}_Win_x64.exe"
 else
@@ -53,7 +53,7 @@ fi
 
 # 2. Build per Windows ARM64
 echo "   🔨 Compilazione Windows ARM64..."
-GOOS=windows GOARCH=arm64 go build -o "dist/${APP_NAME}_Win_ARM64.exe" main.go
+GOOS=windows GOARCH=arm64 go build -o "dist/${APP_NAME}_Win_ARM64.exe" .
 if [ $? -eq 0 ]; then
     echo "      ✔ Creato dist/${APP_NAME}_Win_ARM64.exe"
 else

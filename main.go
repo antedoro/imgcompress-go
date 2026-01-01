@@ -11,6 +11,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -47,19 +48,20 @@ type Task struct {
 }
 
 func main() {
-	// Carica config dalla directory utente standard
+	// Load config from standard user config directory
 	loadConfig()
 
-	// Se ci sono argomenti (drag & drop sull'icona), processali subito
+	// If arguments are present (drag & drop onto icon), process them immediately
 	if len(os.Args) > 1 {
 		runBatch(os.Args[1:])
 		keepOpen()
 		return
 	}
 
-	fmt.Println("==========================================")
-	fmt.Println("   IMG COMPRESSOR - CLI v1.0")
-	fmt.Println("==========================================")
+	fmt.Println("================================================")
+	fmt.Println("   IMG COMPRESSOR - CLI v1.0.1 by V. Antedoro")
+	fmt.Println("   https://github.com/antedoro/imgcompress-go")
+	fmt.Println("================================================")
 
 	mainMenu()
 }
@@ -69,10 +71,10 @@ func main() {
 func mainMenu() {
 	for {
 		prompt := promptui.Select{
-			Label: "Seleziona un'azione",
+			Label: "Select an action",
 			Items: []string{
-				"Comprimi immagini (Drag & Drop)",
-				"Configura parametri",
+				"Compress images (Drag & Drop)",
+				"Configure parameters",
 				"Exit",
 			},
 			Templates: getTemplates(),
@@ -84,11 +86,14 @@ func mainMenu() {
 		}
 
 		switch result {
-		case "Comprimi immagini (Drag & Drop)":
+		case "Compress images (Drag & Drop)":
 			compressionLoop()
-		case "Configura parametri":
+		case "Configure parameters":
 			configureParameters()
 		case "Exit":
+			fmt.Println("✔ Exit")
+			fmt.Println("Press enter to exit.")
+			bufio.NewReader(os.Stdin).ReadString('\n')
 			os.Exit(0)
 		}
 	}
@@ -98,21 +103,21 @@ func configureParameters() {
 	for {
 		// Prepare labels for current values
 		formatLabel := strings.ToUpper(appConfig.OutputFormat)
-		resizeLabel := "Disabilitato"
+		resizeLabel := "Disabled"
 		if appConfig.MaxWidth > 0 {
 			resizeLabel = fmt.Sprintf("%d px", appConfig.MaxWidth)
 		}
 
 		items := []string{
-			fmt.Sprintf("Qualità JPEG (Attuale: %d)", appConfig.JpegQuality),
-			fmt.Sprintf("Formato Output (Attuale: %s)", formatLabel),
-			fmt.Sprintf("Ridimensiona Max Width (Attuale: %s)", resizeLabel),
-			"Ripristina Default",
-			"Indietro",
+			fmt.Sprintf("JPEG Quality (Current: %d)", appConfig.JpegQuality),
+			fmt.Sprintf("Output Format (Current: %s)", formatLabel),
+			fmt.Sprintf("Resize Max Width (Current: %s)", resizeLabel),
+			"Restore Defaults",
+			"Back",
 		}
 
 		prompt := promptui.Select{
-			Label:     "Configurazione",
+			Label:     "Configuration",
 			Items:     items,
 			Templates: getTemplates(),
 		}
@@ -132,7 +137,7 @@ func configureParameters() {
 		case 3: // Reset
 			appConfig = defaultConfig
 			saveConfig()
-			fmt.Println("✅ Configurazione ripristinata ai valori di default.")
+			fmt.Println("✅ Configuration restored to defaults.")
 		case 4: // Back
 			return
 		}
@@ -141,7 +146,7 @@ func configureParameters() {
 
 func changeJpegQuality() {
 	prompt := promptui.Prompt{
-		Label:    "Nuova Qualità JPEG (1-100)",
+		Label:    "New JPEG Quality (1-100)",
 		Default:  strconv.Itoa(appConfig.JpegQuality),
 		Validate: validateNumber(1, 100),
 	}
@@ -153,8 +158,8 @@ func changeJpegQuality() {
 
 func changeOutputFormat() {
 	prompt := promptui.Select{
-		Label:     "Seleziona Formato Output",
-		Items:     []string{"Original (Mantieni formato)", "Force JPEG", "Force PNG"},
+		Label:     "Select Output Format",
+		Items:     []string{"Original (Keep format)", "Force JPEG", "Force PNG"},
 		Templates: getTemplates(),
 	}
 	i, _, _ := prompt.Run()
@@ -171,7 +176,7 @@ func changeOutputFormat() {
 
 func changeMaxWidth() {
 	prompt := promptui.Prompt{
-		Label:    "Larghezza Massima in Pixel (0 per disabilitare)",
+		Label:    "Maximum Width in Pixels (0 to disable)",
 		Default:  strconv.Itoa(appConfig.MaxWidth),
 		Validate: validateNumber(0, 10000),
 	}
@@ -183,10 +188,10 @@ func changeMaxWidth() {
 
 func getTemplates() *promptui.SelectTemplates {
 	return &promptui.SelectTemplates{
-		Label:    "{{ . }}?",
-		Active:   "  {{ . | cyan }}", // Rimosso il carattere ▸ che a volte causa problemi
-		Inactive: "  {{ . | faint }}",
-		Selected: "✔ {{ . | white | bold }}",
+		Label:    "{{ . | cyan }}",
+		Active:   "  {{ . | cyan }} ",
+		Inactive: "  {{ . | faint }} ",
+		Selected: "✔ {{ . | white | bold }} ",
 	}
 }
 
@@ -194,7 +199,7 @@ func validateNumber(min, max int) func(string) error {
 	return func(input string) error {
 		v, err := strconv.Atoi(input)
 		if err != nil || v < min || v > max {
-			return fmt.Errorf("inserisci un numero tra %d e %d", min, max)
+			return fmt.Errorf("please enter a number between %d and %d", min, max)
 		}
 		return nil
 	}
@@ -203,9 +208,9 @@ func validateNumber(min, max int) func(string) error {
 // --- Processing Logic ---
 
 func compressionLoop() {
-	fmt.Println("\n---------- Modalità Compressione ---------")
-	fmt.Println("Trascina file o cartelle qui e premi INVIO.")
-	fmt.Println("Scrivi 'back' per tornare al menu.")
+	fmt.Println("\n---------- Compression Mode --------------")
+	fmt.Println("Drag files or folders here and press ENTER.")
+	fmt.Println("Type 'back' to return to the menu.")
 	fmt.Println("------------------------------------------")
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -228,22 +233,22 @@ func compressionLoop() {
 
 		// Post-compression menu
 		prompt := promptui.Select{
-			Label:     "Operazione completata. Cosa vuoi fare?",
-			Items:     []string{"Carica altre immagini", "Torna al Menu Principale"},
+			Label:     "Operation completed. What would you like to do?",
+			Items:     []string{"Load more images", "Return to Main Menu"},
 			Templates: getTemplates(),
 		}
 
 		i, _, err := prompt.Run()
-		if err != nil || i == 1 { // Error or "Torna al Menu Principale"
+		if err != nil || i == 1 { // Error or "Return to Main Menu"
 			break
 		}
-		// If i == 0 ("Carica altre immagini"), loop continues and shows "> " again
-		fmt.Println("\nTrascina i prossimi file:")
+		// If i == 0 ("Load more images"), loop continues and shows "> " again
+		fmt.Println("\nDrag the next files:")
 	}
 }
 
 func runBatch(inputs []string) {
-	fmt.Println("\n🔍 Analisi in corso...")
+	fmt.Println("\n🔍 Analyzing...")
 
 	var tasks []*Task
 	totalOrig := int64(0)
@@ -251,7 +256,7 @@ func runBatch(inputs []string) {
 
 	files := scanAll(inputs)
 	if len(files) == 0 {
-		fmt.Println("❌ Nessuna immagine supportata trovata.")
+		fmt.Println("❌ No supported images found.")
 		return
 	}
 
@@ -275,25 +280,25 @@ func runBatch(inputs []string) {
 		savedPerc = (float64(savedBytes) / float64(totalOrig)) * 100
 	}
 
-	fmt.Printf("\n📊 TOTALE ORIGINALE:  %s\n", formatBytes(totalOrig))
-	fmt.Printf("📉 TOTALE STIMATO:    %s\n", formatBytes(totalComp))
-	fmt.Printf("💰 RISPARMIO:         %s (%.1f%%)\n", formatBytes(savedBytes), savedPerc)
+	fmt.Printf("\n📊 TOTAL ORIGINAL:  %s\n", formatBytes(totalOrig))
+	fmt.Printf("📉 TOTAL ESTIMATED:  %s\n", formatBytes(totalComp))
+	fmt.Printf("💰 SAVINGS:          %s (%.1f%%)\n", formatBytes(savedBytes), savedPerc)
 
 	if savedBytes <= 0 && appConfig.MaxWidth == 0 && appConfig.OutputFormat == "original" {
-		fmt.Println("\nNessun risparmio significativo e nessuna conversione richiesta.")
-		fmt.Println("Le immagini non verranno salvate.")
+		fmt.Println("\nNo significant savings and no conversion requested.")
+		fmt.Println("Images will not be saved.")
 		cleanup(tasks)
 		return
 	}
 
 	prompt := promptui.Prompt{
-		Label:     "Procedere con il salvataggio",
+		Label:     "Proceed with saving",
 		IsConfirm: true,
 	}
 	_, err := prompt.Run()
 
 	if err != nil {
-		fmt.Println("Operazione annullata.")
+		fmt.Println("Operation cancelled.")
 		cleanup(tasks)
 		return
 	}
@@ -407,7 +412,7 @@ func scanAll(inputs []string) []string {
 		pathStr := cleanPath(input)
 		info, err := os.Stat(pathStr)
 		if err != nil {
-			fmt.Println("⚠️ Errore lettura:", pathStr)
+			fmt.Println("⚠️  Read error:", pathStr)
 			continue
 		}
 		if info.IsDir() {
@@ -448,7 +453,7 @@ func saveFiles(tasks []*Task) {
 		}
 		count++
 	}
-	fmt.Printf("\n✅ Completato! %d immagini salvate.\n", count)
+	fmt.Printf("\n✅ Completed! %d images saved.\n", count)
 }
 
 func cleanup(tasks []*Task) {
@@ -461,8 +466,8 @@ func cleanup(tasks []*Task) {
 
 func printTable(tasks []*Task) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(w, "FILE\tORIGINALE\tNUOVO\tRISPARMIO\tSTATO")
-	fmt.Fprintln(w, "----\t---------\t-----\t---------\t-----")
+	fmt.Fprintln(w, "FILE\tORIGINAL\tNEW\tSAVINGS\tSTATUS")
+	fmt.Fprintln(w, "----\t--------\t---\t-------\t------")
 	for _, t := range tasks {
 		orig := formatBytes(t.OriginalSize)
 		comp := formatBytes(t.CompressedSize)
@@ -485,7 +490,7 @@ func printTable(tasks []*Task) {
 func getConfigPath() string {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
-		return "config.json" // Fallback locale
+		return "config.json" // Fallback local
 	}
 	appDir := filepath.Join(configDir, "ImgCompress")
 	os.MkdirAll(appDir, 0755)
@@ -496,7 +501,7 @@ func loadConfig() {
 	path := getConfigPath()
 	file, err := os.Open(path)
 	if err != nil {
-		return // Usa default
+		return // Use defaults
 	}
 	defer file.Close()
 	json.NewDecoder(file).Decode(&appConfig)
@@ -506,12 +511,12 @@ func saveConfig() {
 	path := getConfigPath()
 	file, err := os.Create(path)
 	if err != nil {
-		fmt.Println("Errore salvataggio config:", err)
+		fmt.Println("Error saving config:", err)
 		return
 	}
 	defer file.Close()
 	json.NewEncoder(file).Encode(appConfig)
-	fmt.Println("Configurazione salvata in:", path)
+	fmt.Println("Configuration saved to:", path)
 }
 
 // --- Utils ---
@@ -519,18 +524,27 @@ func saveConfig() {
 func splitInput(input string) []string {
 	var args []string
 	var current strings.Builder
+	inQuotes := false
 	escaped := false
+
 	for _, r := range input {
 		if escaped {
 			current.WriteRune(r)
 			escaped = false
 			continue
 		}
-		if r == '\\' {
+
+		if runtime.GOOS != "windows" && r == '\\' {
 			escaped = true
 			continue
 		}
-		if r == ' ' {
+
+		if r == '"' {
+			inQuotes = !inQuotes
+			continue
+		}
+
+		if r == ' ' && !inQuotes {
 			if current.Len() > 0 {
 				args = append(args, current.String())
 				current.Reset()
@@ -539,9 +553,11 @@ func splitInput(input string) []string {
 			current.WriteRune(r)
 		}
 	}
+
 	if current.Len() > 0 {
 		args = append(args, current.String())
 	}
+
 	return args
 }
 
@@ -572,6 +588,6 @@ func copyFile(src, dst string) error {
 }
 
 func keepOpen() {
-	fmt.Println("\nPremi Invio per chiudere...")
+	fmt.Println("\nPress Enter to close...")
 	fmt.Scanln()
 }
