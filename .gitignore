@@ -15,4 +15,5 @@ config.json
 .DS_Store
 
 # Go
-go.sum
+# go.sum is tracked
+
