@@ -45,7 +45,7 @@ create_bundle() {
     mkdir -p "$APP_BUNDLE/Contents/MacOS"
     mkdir -p "$APP_BUNDLE/Contents/Resources"
 
-    # Compila
+    # Compila il binario Go
     CGO_ENABLED=0 GOOS=darwin GOARCH=$ARCH go build -o "$APP_BUNDLE/Contents/MacOS/$BINARY_NAME" main.go
     if [ $? -ne 0 ]; then
         echo "❌ Errore compilazione per $ARCH"
@@ -57,30 +57,53 @@ create_bundle() {
         cp "$ICON_ICNS" "$APP_BUNDLE/Contents/Resources/"
     fi
 
-    # Launcher Script
-    LAUNCHER="$APP_BUNDLE/Contents/MacOS/launcher"
-    cat > "$LAUNCHER" <<EOF
-#!/bin/bash
-DIR="\$( cd "\$( dirname "\${BASH_SOURCE[0]}" )" && pwd )"
-EXE="\$DIR/$BINARY_NAME"
+    # Crea il sorgente AppleScript per il Launcher
+    # Riceve il percorso del binario come primo argomento (argv 1)
+    # E i file trascinati come argomenti successivi
+    cat > "$APP_BUNDLE/Contents/Resources/launcher.applescript" <<EOF
+on run argv
+    if (count of argv) > 0 then
+        set binaryPath to item 1 of argv
+        set argList to ""
+        if (count of argv) > 1 then
+            repeat with i from 2 to (count of argv)
+                set argList to argList & " " & quoted form of (item i of argv)
+            end repeat
+        end if
+        launch_app(binaryPath, argList)
+    end if
+end run
 
-ARGS=""
-for arg in "\$@"; do
-    ESCAPED_ARG=\$(printf '%s\n' "\$arg" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g')
-    ARGS="\$ARGS \"\$ESCAPED_ARG\""
-done
+on open theFiles
+    -- Quando i file vengono trascinati, 'on run' non viene chiamato direttamente da macOS
+    -- ma il nostro wrapper shell sì. Quindi gestiamo tutto tramite il wrapper.
+end open
 
-FULL_CMD="\"\$EXE\"\$ARGS"
-AS_CMD=\$(printf '%s\n' "\$FULL_CMD" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g')
-
-osascript <<END
-tell application "Terminal"
-    activate
-    do script "\$AS_CMD"
-end tell
-END
+on launch_app(binaryPath, args)
+    tell application "Terminal"
+        activate
+        do script quoted form of binaryPath & args
+    end tell
+end launch_app
 EOF
-    chmod +x "$LAUNCHER"
+
+    # Compila l'AppleScript
+    osacompile -o "$APP_BUNDLE/Contents/Resources/launcher.scpt" "$APP_BUNDLE/Contents/Resources/launcher.applescript"
+    rm "$APP_BUNDLE/Contents/Resources/launcher.applescript"
+
+    # Crea un wrapper shell come CFBundleExecutable principale
+    # Passa il percorso del binario come primo argomento, seguito dai file trascinati
+    cat > "$APP_BUNDLE/Contents/MacOS/launcher" <<'EOF'
+#!/bin/bash
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Note: BINARY_NAME is replaced by the actual name during build
+EXE="$DIR/ImgCompress"
+SCPT="$DIR/../Resources/launcher.scpt"
+osascript "$SCPT" "$EXE" "$@"
+EOF
+    # Replace the placeholder BINARY_NAME in the launcher script
+    sed -i '' "s/EXE=\"\$DIR\/ImgCompress\"/EXE=\"\$DIR\/$BINARY_NAME\"/" "$APP_BUNDLE/Contents/MacOS/launcher"
+    chmod +x "$APP_BUNDLE/Contents/MacOS/launcher"
 
     # Info.plist
     cat > "$APP_BUNDLE/Contents/Info.plist" <<EOF
@@ -98,12 +121,24 @@ EOF
     <string>$APP_NAME_BASE</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>2.2</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.13</string>
-    <key>Terminal</key>
-    <string>false</string>
-    <key>LSUIElement</key>
-    <true/>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Images and Folders</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>public.image</string>
+                <string>public.folder</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>
 EOF
