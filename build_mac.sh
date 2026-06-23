@@ -80,10 +80,69 @@ on open theFiles
 end open
 
 on launch_app(binaryPath, args)
-    tell application "Terminal"
-        activate
-        do script quoted form of binaryPath & args
-    end tell
+    set isItermRunning to false
+    set isItermInstalled to false
+    
+    try
+        tell application "System Events"
+            set isItermRunning to (exists process "iTerm") or (exists process "iTerm2")
+        end tell
+    on error
+        set isItermRunning to false
+    end try
+    
+    try
+        tell application "Finder" to get application file id "com.googlecode.iterm2"
+        set isItermInstalled to true
+    on error
+        set isItermInstalled to false
+    end try
+    
+    if isItermRunning or isItermInstalled then
+        tell application "iTerm"
+            activate
+            if not isItermRunning then
+                repeat with i from 1 to 10
+                    if (count of windows) > 0 then exit repeat
+                    delay 0.2
+                end repeat
+                if (count of windows) > 0 then
+                    tell current session of current window
+                        write text quoted form of binaryPath & args
+                    end tell
+                    return
+                end if
+            end if
+            set newWindow to (create window with default profile)
+            tell current session of newWindow
+                write text quoted form of binaryPath & args
+            end tell
+        end tell
+    else
+        set isTerminalRunning to false
+        try
+            tell application "System Events"
+                set isTerminalRunning to exists process "Terminal"
+            end tell
+        on error
+            set isTerminalRunning to false
+        end try
+        
+        tell application "Terminal"
+            activate
+            if not isTerminalRunning then
+                repeat with i from 1 to 10
+                    if (count of windows) > 0 then exit repeat
+                    delay 0.2
+                end repeat
+                if (count of windows) > 0 then
+                    do script quoted form of binaryPath & args in window 1
+                    return
+                end if
+            end if
+            do script quoted form of binaryPath & args
+        end tell
+    end if
 end launch_app
 EOF
 

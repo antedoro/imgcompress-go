@@ -14,24 +14,30 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 
 	"github.com/manifoldco/promptui"
 	xdraw "golang.org/x/image/draw"
+	_ "golang.org/x/image/webp"
 )
 
 // Config holds compression settings
 type Config struct {
-	JpegQuality  int    `json:"jpeg_quality"`
-	OutputFormat string `json:"output_format"` // "original", "jpeg", "png"
-	MaxWidth     int    `json:"max_width"`     // 0 = disabled
+	JpegQuality     int    `json:"jpeg_quality"`
+	OutputFormat    string `json:"output_format"`     // "original", "jpeg", "png"
+	MaxWidth        int    `json:"max_width"`         // 0 = disabled
+	OutputDirMode   string `json:"output_dir_mode"`   // "subfolder", "inplace", "custom"
+	CustomOutputDir string `json:"custom_output_dir"` // custom output path
 }
 
 // Defaults
 var defaultConfig = Config{
-	JpegQuality:  75,
-	OutputFormat: "original",
-	MaxWidth:     0,
+	JpegQuality:     75,
+	OutputFormat:    "original",
+	MaxWidth:        0,
+	OutputDirMode:   "subfolder",
+	CustomOutputDir: "",
 }
 
 var appConfig = defaultConfig
@@ -59,7 +65,7 @@ func main() {
 	}
 
 	fmt.Println("================================================")
-	fmt.Println("   IMG COMPRESSOR - CLI v1.0.1 by V. Antedoro")
+	fmt.Println("   IMG COMPRESSOR - CLI v2.2.0 by V. Antedoro")
 	fmt.Println("   https://github.com/antedoro/imgcompress-go")
 	fmt.Println("================================================")
 
@@ -107,11 +113,21 @@ func configureParameters() {
 		if appConfig.MaxWidth > 0 {
 			resizeLabel = fmt.Sprintf("%d px", appConfig.MaxWidth)
 		}
+		destLabel := ""
+		switch appConfig.OutputDirMode {
+		case "subfolder":
+			destLabel = "Subfolder 'compressed'"
+		case "inplace":
+			destLabel = "Overwrite original files"
+		case "custom":
+			destLabel = fmt.Sprintf("Custom (%s)", appConfig.CustomOutputDir)
+		}
 
 		items := []string{
 			fmt.Sprintf("JPEG Quality (Current: %d)", appConfig.JpegQuality),
 			fmt.Sprintf("Output Format (Current: %s)", formatLabel),
 			fmt.Sprintf("Resize Max Width (Current: %s)", resizeLabel),
+			fmt.Sprintf("Output Destination (Current: %s)", destLabel),
 			"Restore Defaults",
 			"Back",
 		}
@@ -134,11 +150,13 @@ func configureParameters() {
 			changeOutputFormat()
 		case 2: // Max Width
 			changeMaxWidth()
-		case 3: // Reset
+		case 3: // Output Destination
+			changeOutputDestination()
+		case 4: // Reset
 			appConfig = defaultConfig
 			saveConfig()
 			fmt.Println("✅ Configuration restored to defaults.")
-		case 4: // Back
+		case 5: // Back
 			return
 		}
 	}
@@ -250,27 +268,67 @@ func compressionLoop() {
 func runBatch(inputs []string) {
 	fmt.Println("\n🔍 Analyzing...")
 
-	var tasks []*Task
-	totalOrig := int64(0)
-	totalComp := int64(0)
-
 	files := scanAll(inputs)
-	if len(files) == 0 {
+	numFiles := len(files)
+	if numFiles == 0 {
 		fmt.Println("❌ No supported images found.")
 		return
 	}
 
-	for _, path := range files {
-		task := analyzeImage(path)
-		tasks = append(tasks, task)
+	tasks := make([]*Task, numFiles)
 
-		if task.Status == "OK" {
-			totalOrig += task.OriginalSize
-			totalComp += task.CompressedSize
-		}
-		fmt.Print(".")
+	type workItem struct {
+		index int
+		path  string
 	}
-	fmt.Println("\n")
+
+	numWorkers := runtime.NumCPU()
+	if numWorkers > numFiles {
+		numWorkers = numFiles
+	}
+	if numWorkers < 1 {
+		numWorkers = 1
+	}
+
+	workChan := make(chan workItem, numFiles)
+	var wg sync.WaitGroup
+	var (
+		mu        sync.Mutex
+		completed int
+		totalOrig int64
+		totalComp int64
+	)
+
+	// Start workers
+	for w := 0; w < numWorkers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for item := range workChan {
+				task := analyzeImage(item.path)
+
+				mu.Lock()
+				tasks[item.index] = task
+				completed++
+				if task.Status == "OK" {
+					totalOrig += task.OriginalSize
+					totalComp += task.CompressedSize
+				}
+				// Visual Progress Update
+				fmt.Printf("\r🔍 Analyzing... [%d/%d] %-35s", completed, numFiles, formatProgressName(task.FileName))
+				mu.Unlock()
+			}
+		}()
+	}
+
+	// Feed workers
+	for i, path := range files {
+		workChan <- workItem{index: i, path: path}
+	}
+	close(workChan)
+
+	wg.Wait()
+	fmt.Println("\n") // Newline after concurrent analysis is done
 
 	printTable(tasks)
 
@@ -347,6 +405,9 @@ func analyzeImage(path string) *Task {
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext == ".png" {
 			targetFormat = "png"
+		} else if ext == ".webp" {
+			// WebP output isn't built-in, convert to jpeg
+			targetFormat = "jpeg"
 		} else {
 			targetFormat = "jpeg"
 		}
@@ -431,25 +492,53 @@ func scanAll(inputs []string) []string {
 
 func isImage(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
-	return ext == ".jpg" || ext == ".jpeg" || ext == ".png"
+	return ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp"
 }
 
 func saveFiles(tasks []*Task) {
 	count := 0
+
+	if appConfig.OutputDirMode == "inplace" {
+		fmt.Println("\n⚠️  Saving in-place (overwriting original files)...")
+	}
+
 	for _, task := range tasks {
 		if task.Status != "OK" {
-			os.Remove(task.TempPath)
+			if task.TempPath != "" {
+				os.Remove(task.TempPath)
+			}
 			continue
 		}
-		srcDir := filepath.Dir(task.OriginalPath)
-		outDir := filepath.Join(srcDir, "compressed")
-		os.MkdirAll(outDir, 0755)
 
-		destPath := filepath.Join(outDir, task.FileName)
+		var destPath string
+		switch appConfig.OutputDirMode {
+		case "inplace":
+			destDir := filepath.Dir(task.OriginalPath)
+			destPath = filepath.Join(destDir, task.FileName)
+			if destPath != task.OriginalPath {
+				os.Remove(task.OriginalPath)
+			}
+		case "custom":
+			os.MkdirAll(appConfig.CustomOutputDir, 0755)
+			destPath = filepath.Join(appConfig.CustomOutputDir, task.FileName)
+		default: // "subfolder"
+			srcDir := filepath.Dir(task.OriginalPath)
+			outDir := filepath.Join(srcDir, "compressed")
+			os.MkdirAll(outDir, 0755)
+			destPath = filepath.Join(outDir, task.FileName)
+		}
+
+		os.Remove(destPath) // Remove if target exists
+
 		err := os.Rename(task.TempPath, destPath)
 		if err != nil {
-			copyFile(task.TempPath, destPath)
-			os.Remove(task.TempPath)
+			err = copyFile(task.TempPath, destPath)
+			if err == nil {
+				os.Remove(task.TempPath)
+			} else {
+				fmt.Printf("❌ Error saving %s: %v\n", task.FileName, err)
+				continue
+			}
 		}
 		count++
 	}
@@ -505,6 +594,11 @@ func loadConfig() {
 	}
 	defer file.Close()
 	json.NewDecoder(file).Decode(&appConfig)
+
+	// Default missing settings in old configuration files
+	if appConfig.OutputDirMode == "" {
+		appConfig.OutputDirMode = "subfolder"
+	}
 }
 
 func saveConfig() {
@@ -590,4 +684,65 @@ func copyFile(src, dst string) error {
 func keepOpen() {
 	fmt.Println("\nPress Enter to close...")
 	fmt.Scanln()
+}
+
+func changeOutputDestination() {
+	prompt := promptui.Select{
+		Label: "Select Output Destination Mode",
+		Items: []string{
+			"Subfolder 'compressed' next to original files",
+			"Overwrite original files (Warning: replaces input files)",
+			"Custom output directory",
+		},
+		Templates: getTemplates(),
+	}
+	i, _, err := prompt.Run()
+	if err != nil {
+		return
+	}
+	switch i {
+	case 0:
+		appConfig.OutputDirMode = "subfolder"
+		appConfig.CustomOutputDir = ""
+		saveConfig()
+	case 1:
+		confirmPrompt := promptui.Prompt{
+			Label:     "Are you sure you want to overwrite original files? This action cannot be undone",
+			IsConfirm: true,
+		}
+		_, confirmErr := confirmPrompt.Run()
+		if confirmErr != nil {
+			fmt.Println("Cancelled changing output destination.")
+			return
+		}
+		appConfig.OutputDirMode = "inplace"
+		appConfig.CustomOutputDir = ""
+		saveConfig()
+	case 2:
+		pathPrompt := promptui.Prompt{
+			Label:   "Enter absolute path to custom output directory",
+			Default: appConfig.CustomOutputDir,
+			Validate: func(input string) error {
+				trimmed := strings.TrimSpace(input)
+				if trimmed == "" {
+					return fmt.Errorf("path cannot be empty")
+				}
+				return nil
+			},
+		}
+		res, err := pathPrompt.Run()
+		if err != nil {
+			return
+		}
+		appConfig.OutputDirMode = "custom"
+		appConfig.CustomOutputDir = strings.TrimSpace(res)
+		saveConfig()
+	}
+}
+
+func formatProgressName(name string) string {
+	if len(name) > 30 {
+		return name[:27] + "..."
+	}
+	return name
 }

@@ -28,8 +28,8 @@ git status -s
 
 # 5. Commit
 echo ""
-read -p "📝 Inserisci il messaggio di commit (Default: 'Release v1.0.0'): " COMMIT_MSG
-COMMIT_MSG=${COMMIT_MSG:-"Release v1.0.0"}
+read -p "📝 Inserisci il messaggio di commit (Default: 'Release v2.2.0'): " COMMIT_MSG
+COMMIT_MSG=${COMMIT_MSG:-"Release v2.2.0"}
 
 git commit -m "$COMMIT_MSG"
 

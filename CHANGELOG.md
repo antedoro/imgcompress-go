@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2026-06-23
+
+### 🚀 New Features
+- **Parallel Processing (Concurrency):** Leveraged multiple CPU cores via Go goroutines to speed up batch image compression.
+- **WebP Format Support:** Added decoding support for WebP files (`.webp`), automatically converting them to optimized JPEG format.
+- **Configurable Output Directory:** Added settings to choose output destinations: default `compressed` subfolder, in-place overwrites (with warning prompt), or a custom output directory.
+- **Enhanced Visual Feedback:** Replaced dots with a numeric progress ticker (e.g. `[3/10]`) indicating live status.
+
 ## [1.0.1] - 2026-01-01
 
 ### 🛠 Fixes & Improvements
